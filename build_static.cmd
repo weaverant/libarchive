@@ -123,6 +123,12 @@ IF NOT EXIST "%INSTALL_DIR%\lib\zlibstatic.lib" (
     IF ERRORLEVEL 1 EXIT /b 1
     CD "%BUILD_DIR%\libs"
 )
+REM zlib's CMakeLists unconditionally builds both SHARED and STATIC targets.
+REM We link against zlibstatic.lib, so strip the DLL + import lib after install
+REM (runs every invocation so stale artifacts from prior runs are also cleaned).
+IF EXIST "%INSTALL_DIR%\bin\zlib.dll" DEL /Q "%INSTALL_DIR%\bin\zlib.dll"
+IF EXIST "%INSTALL_DIR%\bin\zlib1.dll" DEL /Q "%INSTALL_DIR%\bin\zlib1.dll"
+IF EXIST "%INSTALL_DIR%\lib\zlib.lib" DEL /Q "%INSTALL_DIR%\lib\zlib.lib"
 
 REM Download and build bzip2
 IF NOT EXIST bzip2-%BZIP2_VERSION%.zip (
