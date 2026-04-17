@@ -16,16 +16,36 @@ SET XZ_VERSION=5.6.3
 SET ZSTD_VERSION=1.5.5
 SET LZ4_VERSION=1.10.0
 
-REM Visual Studio paths
-SET VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Community
-SET CMAKE_EXE=%VS_PATH%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe
+REM Use cmake from PATH (provided by VS install or CI runner)
+SET CMAKE_EXE=cmake
 
-REM Set up Visual Studio environment
+REM Capture ProgramFiles(x86) to a safe variable name -- the ()
+REM in the variable name breaks batch IF (...) blocks otherwise.
+SET "PF86=%ProgramFiles(x86)%"
+
+REM Set up Visual Studio environment if not already set up
+IF DEFINED VCINSTALLDIR (
+    ECHO VS environment already configured: %VCINSTALLDIR%
+    GOTO :vs_ready
+)
+
+SET "VSWHERE=%PF86%\Microsoft Visual Studio\Installer\vswhere.exe"
+IF NOT EXIST "%VSWHERE%" (
+    ECHO Could not find vswhere.exe at "%VSWHERE%"
+    EXIT /b 1
+)
+FOR /F "usebackq tokens=*" %%i IN (`"%VSWHERE%" -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath`) DO SET "VS_PATH=%%i"
+IF NOT DEFINED VS_PATH (
+    ECHO Could not locate a Visual Studio installation with the C++ x64 toolset
+    EXIT /b 1
+)
 CALL "%VS_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
 IF ERRORLEVEL 1 (
     ECHO Failed to set up Visual Studio environment
     EXIT /b 1
 )
+
+:vs_ready
 
 IF "%1"=="" (
     ECHO Usage: %~nx0 deplibs^|configure^|build^|all
@@ -103,6 +123,12 @@ IF NOT EXIST "%INSTALL_DIR%\lib\zlibstatic.lib" (
     IF ERRORLEVEL 1 EXIT /b 1
     CD "%BUILD_DIR%\libs"
 )
+REM zlib's CMakeLists unconditionally builds both SHARED and STATIC targets.
+REM We link against zlibstatic.lib, so strip the DLL + import lib after install
+REM (runs every invocation so stale artifacts from prior runs are also cleaned).
+IF EXIST "%INSTALL_DIR%\bin\zlib.dll" DEL /Q "%INSTALL_DIR%\bin\zlib.dll"
+IF EXIST "%INSTALL_DIR%\bin\zlib1.dll" DEL /Q "%INSTALL_DIR%\bin\zlib1.dll"
+IF EXIST "%INSTALL_DIR%\lib\zlib.lib" DEL /Q "%INSTALL_DIR%\lib\zlib.lib"
 
 REM Download and build bzip2
 IF NOT EXIST bzip2-%BZIP2_VERSION%.zip (

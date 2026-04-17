@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up MSVC developer environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: amd64
+
+      - name: Determine version label
+        id: meta
+        shell: pwsh
+        run: |
+          $ref = '${{ github.ref_name }}'
+          if ($ref -match '^v(.+)$') {
+              $version = $Matches[1]
+          } else {
+              $shortSha = (git rev-parse --short HEAD).Trim()
+              $version = "dev-$shortSha"
+          }
+          # Strip the "-static-<N>" trailer to get the upstream libarchive version.
+          $upstreamVersion = $version -replace '-static-\d+$', ''
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "upstreamVersion=$upstreamVersion" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "version=$version"
+          Write-Host "upstreamVersion=$upstreamVersion"
+
+      - name: Verify submodule matches release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          # Release tag is "v<upstream>" or "v<upstream>-static-<N>".
+          # Strip the "-static-<N>" suffix so we compare against upstream's tag.
+          $tag = '${{ github.ref_name }}'
+          $upstreamTag = $tag -replace '-static-\d+$', ''
+          Push-Location libarchive
+          # actions/checkout does a shallow submodule clone without tag refs;
+          # fetch tags so `git describe --exact-match` can resolve the pin.
+          git fetch --tags --depth=1 origin 2>&1 | Out-Null
+          $submoduleTag = git describe --tags --exact-match 2>$null
+          Pop-Location
+          if ($submoduleTag -ne $upstreamTag) {
+              Write-Error "Submodule is at '$submoduleTag' but upstream part of release tag is '$upstreamTag' (full tag '$tag'). Bump the submodule before tagging."
+              exit 1
+          }
+          Write-Host "Submodule matches upstream tag: $submoduleTag"
+
+      - name: Build libarchive (static)
+        shell: cmd
+        run: build_static.cmd all
+
+      - name: Package ZIP of install tree
+        id: pkg
+        shell: pwsh
+        run: |
+          $version = '${{ steps.meta.outputs.version }}'
+          $zip = "libarchive-Win64-$version.zip"
+          Compress-Archive -Path install_static\* -DestinationPath $zip
+          "zip=$zip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Get-Item $zip | Select-Object Name, Length
+
+      - name: Upload artifact (all runs)
+        uses: actions/upload-artifact@v4
+        with:
+          name: libarchive-Win64-${{ steps.meta.outputs.version }}
+          path: ${{ steps.pkg.outputs.zip }}
+
+      - name: Create GitHub Release (tag push only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg.outputs.zip }}
+          generate_release_notes: false
+          body: |
+            Static Windows x64 binaries for libarchive ${{ steps.meta.outputs.upstreamVersion }}.
+
+            Includes: bsdtar, bsdcpio, bsdcat (plus xz and zstd utilities as
+            build byproducts). Built with MSVC /MT — standalone, no DLL deps.
+
+            Upstream release notes: https://github.com/libarchive/libarchive/releases/tag/v${{ steps.meta.outputs.upstreamVersion }}
