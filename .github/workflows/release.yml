@@ -11,7 +11,10 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # Pinned to windows-2022 for VS 2022: the build hardcodes the CMake
+    # generator "Visual Studio 17 2022", and windows-latest has rolled forward
+    # to an image shipping VS 2026 (VS18), which that generator cannot find.
+    runs-on: windows-2022
 
     steps:
       - name: Checkout

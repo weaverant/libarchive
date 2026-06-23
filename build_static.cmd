@@ -13,7 +13,7 @@ REM Dependency versions (from libarchive CI)
 SET ZLIB_VERSION=1.3
 SET BZIP2_VERSION=1ea1ac188ad4b9cb662e3f8314673c63df95a589
 SET XZ_VERSION=5.6.3
-SET ZSTD_VERSION=1.5.5
+SET ZSTD_VERSION=1.5.7
 SET LZ4_VERSION=1.10.0
 
 REM Use cmake from PATH (provided by VS install or CI runner)
