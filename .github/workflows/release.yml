@@ -94,7 +94,7 @@ jobs:
           body: |
             Static Windows x64 binaries for libarchive ${{ steps.meta.outputs.upstreamVersion }}.
 
-            Includes: bsdtar, bsdcpio, bsdcat (plus xz and zstd utilities as
-            build byproducts). Built with MSVC /MT — standalone, no DLL deps.
+            Includes: bsdtar, bsdcpio, bsdcat, bsdunzip (plus xz and zstd utilities as
+            build byproducts). Built with MSVC /MT: standalone, only Windows system DLLs.
 
             Upstream release notes: https://github.com/libarchive/libarchive/releases/tag/v${{ steps.meta.outputs.upstreamVersion }}

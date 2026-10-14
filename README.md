@@ -9,6 +9,7 @@ Static build of [libarchive](https://github.com/libarchive/libarchive) with all 
 | `bsdtar.exe` | Full-featured tar implementation |
 | `bsdcpio.exe` | cpio archive tool |
 | `bsdcat.exe` | Decompression tool (like zcat, bzcat, xzcat) |
+| `bsdunzip.exe` | unzip implementation (built on Windows since libarchive 3.8.10) |
 
 ## Compression Support
 
@@ -16,7 +17,7 @@ Static build of [libarchive](https://github.com/libarchive/libarchive) with all 
 - bzip2 (1.1.0)
 - xz/lzma (5.6.3)
 - lz4 (1.10.0)
-- zstd (1.5.5)
+- zstd (1.5.7)
 - Encrypted ZIP (Windows CNG)
 
 ## Building
